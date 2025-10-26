@@ -41,7 +41,7 @@ You can install this plugin in three ways:
 3. Click **Install Now**, then **Activate**.
 
 ### 2. Upload via ZIP File
-1. Download the ZIP from [Github](https://github.com/jcbenton/tokenlink-sso-login-for-zendesk) or from WordPress.org.  
+1. Download the ZIP from [Github](https://github.com/jcbenton/tokenlink-sso-login-for-zendesk/releases) or from WordPress.org.  
 2. Go to **Plugins → Add New → Upload Plugin**.  
 3. Select the ZIP file, click **Install Now**, then **Activate Plugin**.
 
