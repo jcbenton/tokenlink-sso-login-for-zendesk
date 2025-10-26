@@ -1,4 +1,11 @@
-# TokenLink SSO Login for Zendesk (by Mailborder)
+<p align="center">
+  <picture>
+    <source media="(min-width: 768px)" srcset="assets/banner-1544x500.png">
+    <img src="assets/banner-772x250.png" alt="TokenLink – Menu Permissions" width="100%">
+  </picture>
+</p>
+
+# TokenLink SSO Login for Zendesk
 
 **Contributors:** [Mailborder](https://profiles.wordpress.org/mailborder)  
 **Donate link:** [Stripe](https://donate.stripe.com/14AdRa6XJ1Xn8yT8KObfO00  )  
