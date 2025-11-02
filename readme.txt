@@ -93,6 +93,11 @@ Verify your Zendesk subdomain and shared secret are correct, and that your Zende
 
 == Changelog ==
 
+= 1.0.7 - 2025-11-02 =
+* Code compliance review for WordPress PHPCS standards.
+* Added Settings link to plugin action links.
+* Improved plugin description.
+
 = 1.0.6 - 2025-10-19 =
 * Initial public release.
 * Modernized JWT implementation (Firebase PHP-JWT).
@@ -100,6 +105,9 @@ Verify your Zendesk subdomain and shared secret are correct, and that your Zende
 * Added `[tokenlink_zendesk_login]` shortcode.
 
 == Upgrade Notice ==
+
+= 1.0.7 =
+* Code compliance improvements. No action required by users.
 
 = 1.0.6 =
 * Code initial release. No end user action required. 

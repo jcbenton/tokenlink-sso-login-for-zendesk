@@ -110,6 +110,12 @@ If you like the plugin, please consider [a donation](https://donate.stripe.com/1
 
 ## Changelog
 
+### 1.0.7 — 2025-11-02
+* Code compliance review for WordPress PHPCS standards.
+* Added Settings link to plugin action links.
+* Improved plugin description.
+* No action required by users.
+
 ### 1.0.6 — 2025-10-19
 * Initial public release.
 * Modernized JWT implementation (Firebase PHP-JWT).
