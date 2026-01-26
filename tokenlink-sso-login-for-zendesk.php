@@ -3,8 +3,8 @@
  * Plugin Name: TokenLink SSO Login for Zendesk
  * Plugin URI: https://www.mailborder.com/zendesk-sso-plugin
  * Description: Provides secure JWT-based single sign-on between WordPress and Zendesk. Developed by Mailborder Systems.
- * Version: 1.0.7
- * Author: Mailborder Systems (Jerry Benton)
+ * Version: 1.0.8
+ * Author: Jerry Benton
  * Author URI: https://www.mailborder.com
  * License: GPL v3 or later
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html

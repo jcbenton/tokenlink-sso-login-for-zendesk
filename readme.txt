@@ -3,9 +3,9 @@ Contributors: mailborder
 Donate link: https://donate.stripe.com/14AdRa6XJ1Xn8yT8KObfO00
 Tags: zendesk, sso, jwt, single sign on, login
 Requires at least: 5.5
-Tested up to: 6.8
+Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -93,6 +93,10 @@ Verify your Zendesk subdomain and shared secret are correct, and that your Zende
 
 == Changelog ==
 
+= 1.0.8 - 2025-12-03 =
+* Code compliance review for Wordpress 6.9.
+* Updated documentation. 
+
 = 1.0.7 - 2025-11-02 =
 * Code compliance review for WordPress PHPCS standards.
 * Added Settings link to plugin action links.
@@ -105,6 +109,9 @@ Verify your Zendesk subdomain and shared secret are correct, and that your Zende
 * Added `[tokenlink_zendesk_login]` shortcode.
 
 == Upgrade Notice ==
+
+= 1.0.8 =
+* Code compliance improvements. No action required by users.
 
 = 1.0.7 =
 * Code compliance improvements. No action required by users.

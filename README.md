@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(min-width: 768px)" srcset="assets/banner-1544x500.png">
-    <img src="assets/banner-772x250.png" alt="TokenLink – Menu Permissions" width="100%">
+    <source media="(min-width: 768px)" srcset="wporg-assets/banner-1544x500.png">
+    <img src="wporg-assets/banner-772x250.png" alt="TokenLink – Menu Permissions" width="100%">
   </picture>
 </p>
 
@@ -11,9 +11,9 @@
 **Donate link:** [Stripe](https://donate.stripe.com/14AdRa6XJ1Xn8yT8KObfO00  )  
 **Tags:** zendesk, sso, jwt, single sign on, login  
 **Requires at least:** WordPress 5.5  
-**Tested up to:** 6.8  
+**Tested up to:** 6.9  
 **Requires PHP:** 7.4  
-**Stable tag:** 1.0.7  
+**Stable tag:** 1.0.8  
 **License:** GPLv3 or later  
 **License URI:** [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html)
 
@@ -110,6 +110,10 @@ If you like the plugin, please consider [a donation](https://donate.stripe.com/1
 
 ## Changelog
 
+### 1.0.8 — 2025-12-03
+* Code compliance review for WordPress 6.9.
+* Updated documentation.
+
 ### 1.0.7 — 2025-11-02
 * Code compliance review for WordPress PHPCS standards.
 * Added Settings link to plugin action links.
@@ -125,19 +129,19 @@ If you like the plugin, please consider [a donation](https://donate.stripe.com/1
 * Added donation link to settings page. 
 * Updated docs and version numbers.
 
-### 🖼️ Screenshots in /assets
+### 🖼️ Screenshots in /wporg-assets
 
 **1. Zendesk SSO Settings Page**
 
-![TokenLink Zendesk SSO Settings Page](assets/screenshot-1.png)
+![TokenLink Zendesk SSO Settings Page](wporg-assets/screenshot-1.png)
 
 **2. Zendesk JWT Configuration in Zendesk**
 
-![Zendesk JWT Configuration](assets/screenshot-2.png)
+![Zendesk JWT Configuration](wporg-assets/screenshot-2.png)
 
 **3. Example Shortcode Page**
 
-![Example Shortcode Page](assets/screenshot-3.png)
+![Example Shortcode Page](wporg-assets/screenshot-3.png)
 
 ### License
 
