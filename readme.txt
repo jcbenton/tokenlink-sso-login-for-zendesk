@@ -25,23 +25,23 @@ Written by Jerry Benton, the creator of Mailborder and MailScanner v5.
 
 There are three ways to install this plugin:
 
-=== From the WordPress Plugin Directory (Preferred) ===
+= From the WordPress Plugin Directory (Preferred) =
 1. In your WordPress admin dashboard, go to **Plugins → Add New**.
 2. Search for **TokenLink SSO Login for Zendesk**.
 3. Click **Install Now**, then **Activate**.
 
-=== Upload via ZIP File ===
+= Upload via ZIP File =
 1. Download the plugin ZIP file from [mailborder.com](https://www.mailborder.com/zendesk-sso-plugin) or from WordPress.org.
 2. In your WordPress admin dashboard, go to **Plugins → Add New** and click **Upload Plugin** at the top.
 3. Select the ZIP file and click **Install Now**.
 4. When installation completes, click **Activate Plugin**.
 
-=== Manual Installation (FTP or File Manager) ===
+= Manual Installation (FTP or File Manager) =
 1. Download the plugin ZIP file and extract it on your computer.
 2. Upload the extracted folder to `/wp-content/plugins/` using FTP or your hosting file manager.
 3. Activate it through the **Plugins** menu in WordPress.
 
-=== Configuration ===
+= Configuration =
 1. Navigate to **Settings → TokenLink Zendesk SSO**.
 2. Enter your **Zendesk Subdomain** and **Shared Secret**.
 3. Set a **Login Redirect Page** if you use a custom login URL.
