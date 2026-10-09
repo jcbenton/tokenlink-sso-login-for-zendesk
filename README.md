@@ -8,12 +8,12 @@
 # TokenLink SSO Login for Zendesk
 
 **Contributors:** [Mailborder](https://profiles.wordpress.org/mailborder)  
-**Donate link:** [Stripe](https://donate.stripe.com/14AdRa6XJ1Xn8yT8KObfO00  )  
+**Donate link:** [Stripe](https://donate.stripe.com/14AdRa6XJ1Xn8yT8KObfO00)  
 **Tags:** zendesk, sso, jwt, single sign on, login  
 **Requires at least:** WordPress 5.5  
-**Tested up to:** 6.9  
+**Tested up to:** 7.0  
 **Requires PHP:** 7.4  
-**Stable tag:** 1.0.8  
+**Stable tag:** 1.0.10  
 **License:** GPLv3 or later  
 **License URI:** [https://www.gnu.org/licenses/gpl-3.0.html](https://www.gnu.org/licenses/gpl-3.0.html)
 
@@ -109,6 +109,23 @@ If you like the plugin, please consider [a donation](https://donate.stripe.com/1
 
 
 ## Changelog
+
+### 1.0.10 — 2026-05-28
+* Verified compatible with WordPress 7.0 (released 2026-05-20).
+* Added modern plugin header fields: Requires at least, Requires PHP, Tested up to, Text Domain.
+* Moved SSO redirect from the shortcode callback to a priority-1 `template_redirect` action.
+* Gates for preview, customizer, REST, AJAX, cron, XML-RPC, and WP-CLI requests; honours `post_password_required()`.
+* `tokenlink_zendesk_sso_page_match` filter for page-builder integrations.
+* Loop guard against misconfigured login-redirect pointing back at the SSO page.
+* External login redirect URLs are now actually followed (allowed_redirect_hosts hooked dynamically).
+* Strict subdomain validation at save and use time; redirects send `nocache_headers()` + HTTP 303.
+* JWT: 60s `nbf` skew slack; URL-safe `jti`; `display_name` HTML-decoded and `user_email` lowercased.
+* Tighter sanitizers for redirect path and shared secret.
+* Activation notice points administrators at the settings page on first activation.
+
+### 1.0.9 — 2026-01-26
+* Added tabbed settings interface with General and About tabs.
+* Added About page with plugin information, features, and support links.
 
 ### 1.0.8 — 2025-12-03
 * Code compliance review for WordPress 6.9.

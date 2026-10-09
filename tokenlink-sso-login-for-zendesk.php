@@ -3,11 +3,15 @@
  * Plugin Name: TokenLink SSO Login for Zendesk
  * Plugin URI: https://www.mailborder.com/zendesk-sso-plugin
  * Description: Provides secure JWT-based single sign-on between WordPress and Zendesk. Developed by Mailborder Systems.
- * Version: 1.0.9
+ * Version: 1.0.10
+ * Requires at least: 5.5
+ * Tested up to: 7.0
+ * Requires PHP: 7.4
  * Author: Jerry Benton
  * Author URI: https://www.mailborder.com
  * License: GPL v3 or later
  * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * Text Domain: tokenlink-sso-login-for-zendesk
  *
  * This plugin includes portions of the firebase/php-jwt library,
  * © 2011–2025 Firebase, licensed under the BSD 3-Clause License.
@@ -22,6 +26,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+
+/*
+ * ----------------------------------------------------------------------
+ * Activation: flag a one-time admin notice pointing the user at settings.
+ * ----------------------------------------------------------------------
+ */
+register_activation_hook(
+	__FILE__,
+	function () {
+		set_transient( 'tokenlink_zendesk_sso_activated', 1, MINUTE_IN_SECONDS * 30 );
+	}
+);
+
+add_action(
+	'admin_notices',
+	function () {
+		if ( ! get_transient( 'tokenlink_zendesk_sso_activated' ) || ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		delete_transient( 'tokenlink_zendesk_sso_activated' );
+		$link = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'options-general.php?page=tokenlink_zendesk_sso' ) ),
+			esc_html__( 'configure your Zendesk subdomain and shared secret', 'tokenlink-sso-login-for-zendesk' )
+		);
+		printf(
+			'<div class="notice notice-info is-dismissible"><p>%s</p></div>',
+			wp_kses(
+				sprintf(
+					/* translators: %s: an HTML anchor link to the plugin settings page */
+					__( 'TokenLink SSO Login for Zendesk: %s to enable SSO.', 'tokenlink-sso-login-for-zendesk' ),
+					$link
+				),
+				array( 'a' => array( 'href' => array() ) )
+			)
+		);
+	}
+);
 
 /*
  * ----------------------------------------------------------------------
@@ -179,6 +221,9 @@ function tokenlink_zendesk_sso_render_general_tab() {
  * @return void
  */
 function tokenlink_zendesk_sso_render_about_tab() {
+	if ( ! function_exists( 'get_plugin_data' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
 	$plugin_data = get_plugin_data( __FILE__ );
 	$version     = $plugin_data['Version'];
 	?>
@@ -614,9 +659,36 @@ function tokenlink_zendesk_sso_render_about_tab() {
 add_action(
 	'admin_init',
 	function () {
-		register_setting( 'tokenlink_zendesk_sso', 'tokenlink_zendesk_subdomain', array( 'sanitize_callback' => 'sanitize_text_field' ) );
-		register_setting( 'tokenlink_zendesk_sso', 'tokenlink_zendesk_shared_key', array( 'sanitize_callback' => 'sanitize_text_field' ) );
-		register_setting( 'tokenlink_zendesk_sso', 'tokenlink_zendesk_login_redirect', array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting(
+			'tokenlink_zendesk_sso',
+			'tokenlink_zendesk_subdomain',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'tokenlink_zendesk_sso_sanitize_subdomain',
+				'show_in_rest'      => false,
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'tokenlink_zendesk_sso',
+			'tokenlink_zendesk_shared_key',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'tokenlink_zendesk_sso_sanitize_secret',
+				'show_in_rest'      => false,
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'tokenlink_zendesk_sso',
+			'tokenlink_zendesk_login_redirect',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'tokenlink_zendesk_sso_sanitize_redirect',
+				'show_in_rest'      => false,
+				'default'           => '',
+			)
+		);
 
 		add_settings_section(
 			'tokenlink_zendesk_sso_main',
@@ -627,17 +699,25 @@ add_action(
 
 		add_settings_field(
 			'tokenlink_zendesk_subdomain',
-			'Zendesk Subdomain',
+			__( 'Zendesk Subdomain', 'tokenlink-sso-login-for-zendesk' ),
 			function () {
 				printf(
-					'<input type="text" name="tokenlink_zendesk_subdomain" value="%s" class="regular-text" />',
+					'<input type="text" name="tokenlink_zendesk_subdomain" value="%s" class="regular-text" autocomplete="off" />',
 					esc_attr( get_option( 'tokenlink_zendesk_subdomain', '' ) )
 				);
-				echo '<p class="description">Specify your Zendesk subdomain — this identifies your Zendesk instance:</p>';
+				echo '<p class="description">' . esc_html__( 'Specify your Zendesk subdomain — this identifies your Zendesk instance:', 'tokenlink-sso-login-for-zendesk' ) . '</p>';
 				echo '<ul style="list-style-type: disc; margin-left: 20px;">';
-				echo '<li>If your Zendesk URL were <strong>mailborder.zendesk.com</strong>, enter only <strong>mailborder</strong></li>';
-				echo '<li>Do not include <strong>https://</strong> or <strong>.zendesk.com</strong></li>';
-				echo '<li>This value is used to construct the SSO endpoint URL when generating the JWT redirect.</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: example subdomain wrapped in <strong> */
+					sprintf( __( 'If your Zendesk URL were %1$s, enter only %2$s', 'tokenlink-sso-login-for-zendesk' ), '<strong>mailborder.zendesk.com</strong>', '<strong>mailborder</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %1$s: https:// in <strong>, %2$s: .zendesk.com in <strong> */
+					sprintf( __( 'Do not include %1$s or %2$s', 'tokenlink-sso-login-for-zendesk' ), '<strong>https://</strong>', '<strong>.zendesk.com</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . esc_html__( 'This value is used to construct the SSO endpoint URL when generating the JWT redirect.', 'tokenlink-sso-login-for-zendesk' ) . '</li>';
 				echo '</ul>';
 			},
 			'tokenlink_zendesk_sso',
@@ -646,19 +726,35 @@ add_action(
 
 		add_settings_field(
 			'tokenlink_zendesk_shared_key',
-			'Zendesk Shared Secret',
+			__( 'Zendesk Shared Secret', 'tokenlink-sso-login-for-zendesk' ),
 			function () {
 				printf(
-					'<input type="text" name="tokenlink_zendesk_shared_key" value="%s" class="regular-text" />',
+					'<input type="password" name="tokenlink_zendesk_shared_key" value="%s" class="regular-text" autocomplete="new-password" spellcheck="false" />',
 					esc_attr( get_option( 'tokenlink_zendesk_shared_key', '' ) )
 				);
-				echo '<p class="description">Follow these steps to obtain and configure your shared secret:</p>';
+				echo '<p class="description">' . esc_html__( 'Follow these steps to obtain and configure your shared secret:', 'tokenlink-sso-login-for-zendesk' ) . '</p>';
 				echo '<ul style="list-style-type: disc; margin-left: 20px;">';
-				echo '<li>Go to the <strong>Zendesk Admin Center → Account → Security → Single sign-on</strong>.</li>';
-				echo '<li>Create a new <strong>JSON Web Token (JWT)</strong> configuration.</li>';
-				echo '<li>Copy the generated <em>Shared Secret</em> and paste it here.</li>';
-				echo '<li>Ensure your Zendesk account is configured to allow SSO access.</li>';
-				echo '<li>See the <strong>Implementation</strong> section below for the <strong>Remote Login URL</strong>.</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: Zendesk Admin Center navigation path in <strong> */
+					sprintf( __( 'Go to the %s.', 'tokenlink-sso-login-for-zendesk' ), '<strong>' . esc_html__( 'Zendesk Admin Center → Account → Security → Single sign-on', 'tokenlink-sso-login-for-zendesk' ) . '</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: JSON Web Token (JWT) wrapped in <strong> */
+					sprintf( __( 'Create a new %s configuration.', 'tokenlink-sso-login-for-zendesk' ), '<strong>' . esc_html__( 'JSON Web Token (JWT)', 'tokenlink-sso-login-for-zendesk' ) . '</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: "Shared Secret" wrapped in <em> */
+					sprintf( __( 'Copy the generated %s and paste it here.', 'tokenlink-sso-login-for-zendesk' ), '<em>' . esc_html__( 'Shared Secret', 'tokenlink-sso-login-for-zendesk' ) . '</em>' ),
+					array( 'em' => array() )
+				) . '</li>';
+				echo '<li>' . esc_html__( 'Ensure your Zendesk account is configured to allow SSO access.', 'tokenlink-sso-login-for-zendesk' ) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %1$s: "Implementation" in <strong>, %2$s: "Remote Login URL" in <strong> */
+					sprintf( __( 'See the %1$s section below for the %2$s.', 'tokenlink-sso-login-for-zendesk' ), '<strong>' . esc_html__( 'Implementation', 'tokenlink-sso-login-for-zendesk' ) . '</strong>', '<strong>' . esc_html__( 'Remote Login URL', 'tokenlink-sso-login-for-zendesk' ) . '</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
 				echo '</ul>';
 			},
 			'tokenlink_zendesk_sso',
@@ -667,17 +763,21 @@ add_action(
 
 		add_settings_field(
 			'tokenlink_zendesk_login_redirect',
-			'Login Redirect Page',
+			__( 'Login Redirect Page', 'tokenlink-sso-login-for-zendesk' ),
 			function () {
 				printf(
 					'<input type="text" name="tokenlink_zendesk_login_redirect" value="%s" class="regular-text" />',
 					esc_attr( get_option( 'tokenlink_zendesk_login_redirect', '' ) )
 				);
-				echo '<p class="description">Configure where users should be redirected if they are not logged in:</p>';
+				echo '<p class="description">' . esc_html__( 'Configure where users should be redirected if they are not logged in:', 'tokenlink-sso-login-for-zendesk' ) . '</p>';
 				echo '<ul style="list-style-type: disc; margin-left: 20px;">';
-				echo '<li>Leave blank to use the default WordPress login page.</li>';
-				echo '<li>Enter a relative path (e.g., <strong>/login</strong>) or a full URL to a custom login page.</li>';
-				echo '<li>After logging in, users are automatically redirected back to the original local TokenLink Zendesk SSO page.</li>';
+				echo '<li>' . esc_html__( 'Leave blank to use the default WordPress login page.', 'tokenlink-sso-login-for-zendesk' ) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: example relative path /login wrapped in <strong> */
+					sprintf( __( 'Enter a relative path (e.g., %s) or a full URL to a custom login page.', 'tokenlink-sso-login-for-zendesk' ), '<strong>/login</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . esc_html__( 'After logging in, users are automatically redirected back to the original local TokenLink Zendesk SSO page.', 'tokenlink-sso-login-for-zendesk' ) . '</li>';
 				echo '</ul>';
 			},
 			'tokenlink_zendesk_sso',
@@ -687,14 +787,26 @@ add_action(
 		// Implementation instructions.
 		add_settings_field(
 			'tokenlink_zendesk_implementation',
-			'Implementation',
+			__( 'Implementation', 'tokenlink-sso-login-for-zendesk' ),
 			function () {
-				echo '<p class="description">Follow these steps to complete your integration:</p>';
+				echo '<p class="description">' . esc_html__( 'Follow these steps to complete your integration:', 'tokenlink-sso-login-for-zendesk' ) . '</p>';
 				echo '<ul style="list-style-type: disc; margin-left: 20px;">';
-				echo '<li>Create a blank WordPress page and insert this shortcode: <code>&#91;tokenlink_zendesk_login&#93;</code></li>';
-				echo '<li>(Optional) Create a menu item that links to that page (e.g., <strong>Support</strong>).</li>';
-				echo '<li>In your zendesk.com SSO settings, set the full page URL you created above as your <strong>Remote Login URL</strong>.</li>';
-				echo '<li>The plugin will automatically handle authentication and redirect users to Zendesk via secure JWT SSO.</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: shortcode tag wrapped in <code> */
+					sprintf( __( 'Create a blank WordPress page and insert this shortcode: %s', 'tokenlink-sso-login-for-zendesk' ), '<code>[tokenlink_zendesk_login]</code>' ),
+					array( 'code' => array() )
+				) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: example menu label "Support" wrapped in <strong> */
+					sprintf( __( '(Optional) Create a menu item that links to that page (e.g., %s).', 'tokenlink-sso-login-for-zendesk' ), '<strong>' . esc_html__( 'Support', 'tokenlink-sso-login-for-zendesk' ) . '</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . wp_kses(
+					/* translators: %s: "Remote Login URL" wrapped in <strong> */
+					sprintf( __( 'In your zendesk.com SSO settings, set the full page URL you created above as your %s.', 'tokenlink-sso-login-for-zendesk' ), '<strong>' . esc_html__( 'Remote Login URL', 'tokenlink-sso-login-for-zendesk' ) . '</strong>' ),
+					array( 'strong' => array() )
+				) . '</li>';
+				echo '<li>' . esc_html__( 'The plugin will automatically handle authentication and redirect users to Zendesk via secure JWT SSO.', 'tokenlink-sso-login-for-zendesk' ) . '</li>';
 				echo '</ul>';
 			},
 			'tokenlink_zendesk_sso',
@@ -704,65 +816,304 @@ add_action(
 	}
 );
 
+/**
+ * Sanitize the configured login-redirect option.
+ *
+ * Accepts an empty string, an absolute http/https URL, or a site-rooted relative path
+ * starting with "/". Anything else is rejected (stored as empty) to avoid foot-guns like
+ * `tel:`, `mailto:`, protocol-relative URLs, or path-less inputs that produce broken redirects.
+ *
+ * @param string $value Raw value from the settings form.
+ * @return string Sanitized value safe for storage.
+ */
+function tokenlink_zendesk_sso_sanitize_redirect( $value ) {
+	$value = is_string( $value ) ? trim( wp_unslash( $value ) ) : '';
+	if ( '' === $value ) {
+		return '';
+	}
+	if ( preg_match( '#^https?://#i', $value ) ) {
+		return (string) esc_url_raw( $value, array( 'http', 'https' ) );
+	}
+	if ( '/' === $value[0] ) {
+		// Site-rooted relative path. Reject protocol-relative `//host/...`.
+		if ( isset( $value[1] ) && '/' === $value[1] ) {
+			add_settings_error(
+				'tokenlink_zendesk_login_redirect',
+				'tokenlink_zendesk_login_redirect_invalid',
+				__( 'Login Redirect Page: protocol-relative URLs are not allowed.', 'tokenlink-sso-login-for-zendesk' )
+			);
+			return '';
+		}
+		return (string) esc_url_raw( $value );
+	}
+	add_settings_error(
+		'tokenlink_zendesk_login_redirect',
+		'tokenlink_zendesk_login_redirect_invalid',
+		__( 'Login Redirect Page must be empty, a path starting with "/", or a full http(s):// URL.', 'tokenlink-sso-login-for-zendesk' )
+	);
+	return '';
+}
+
+/**
+ * Sanitize the Zendesk subdomain at save time.
+ *
+ * Enforces the DNS label rules Zendesk actually uses: lowercase alphanumeric plus
+ * internal hyphens, 1–63 chars, no leading or trailing hyphen. Invalid input is
+ * rejected (stored as empty) with an admin notice. This prevents an admin who pastes
+ * a full URL or a malicious string from causing the JWT to be sent to an attacker
+ * controlled host.
+ *
+ * @param string $value Raw value from the settings form.
+ * @return string Sanitized subdomain safe for URL interpolation.
+ */
+function tokenlink_zendesk_sso_sanitize_subdomain( $value ) {
+	$value = is_string( $value ) ? strtolower( trim( wp_unslash( $value ) ) ) : '';
+	if ( '' === $value ) {
+		return '';
+	}
+	// Strip trailing `.zendesk.com` if a user pasted the full host by mistake.
+	$value = preg_replace( '/\.zendesk\.com$/i', '', $value );
+	if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $value ) ) {
+		add_settings_error(
+			'tokenlink_zendesk_subdomain',
+			'tokenlink_zendesk_subdomain_invalid',
+			__( 'Zendesk Subdomain must contain only lowercase letters, digits, and hyphens (e.g., "mailborder").', 'tokenlink-sso-login-for-zendesk' )
+		);
+		return '';
+	}
+	return $value;
+}
+
+/**
+ * Sanitize the Zendesk shared secret at save time.
+ *
+ * Trim only — the full sanitize_text_field treatment can strip characters that are
+ * legitimate in random base64-like secrets (e.g., `<`, `>`, sequences resembling tags).
+ * The secret is never echoed except via esc_attr() into a password input.
+ *
+ * @param string $value Raw value from the settings form.
+ * @return string Trimmed secret.
+ */
+function tokenlink_zendesk_sso_sanitize_secret( $value ) {
+	return is_string( $value ) ? trim( wp_unslash( $value ) ) : '';
+}
+
+/**
+ * Whether both the Zendesk subdomain and shared secret are configured.
+ *
+ * @return bool
+ */
+function tokenlink_zendesk_sso_is_configured() {
+	$subdomain = trim( (string) get_option( 'tokenlink_zendesk_subdomain', '' ) );
+	$secret    = trim( (string) get_option( 'tokenlink_zendesk_shared_key', '' ) );
+	return '' !== $subdomain && '' !== $secret;
+}
+
 /*
  * ----------------------------------------------------------------------
- * Shortcode: [tokenlink_zendesk_login]
- * Redirects logged-in users to Zendesk using JWT SSO
+ * SSO redirect dispatch.
+ *
+ * The actual redirect runs on `template_redirect` — before any output —
+ * so headers are always available. The [tokenlink_zendesk_login]
+ * shortcode acts only as a marker that flags a page as the SSO entry
+ * point; in normal operation that shortcode's render callback is never
+ * reached, because template_redirect will have already exited the request.
  * ----------------------------------------------------------------------
+ */
+
+/**
+ * On singular requests whose content contains [tokenlink_zendesk_login],
+ * redirect to the WP login (if anonymous) or to Zendesk via JWT (if signed in).
+ *
+ * Runs at priority 1 so we beat most caching/security plugins that hook
+ * `template_redirect` and may short-circuit the request.
+ *
+ * @return void
+ */
+function tokenlink_zendesk_sso_template_redirect() {
+	if ( is_admin()
+		|| is_feed()
+		|| is_robots()
+		|| is_preview()
+		|| is_customize_preview()
+		|| ( defined( 'REST_REQUEST' ) && REST_REQUEST )
+		|| ( defined( 'DOING_AJAX' ) && DOING_AJAX )
+		|| ( defined( 'DOING_CRON' ) && DOING_CRON )
+		|| ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
+		|| ( defined( 'WP_CLI' ) && WP_CLI )
+		|| ! is_singular() ) {
+		return;
+	}
+
+	$post = get_post();
+	if ( ! $post instanceof WP_Post ) {
+		return;
+	}
+
+	// Honour page-level password protection.
+	if ( post_password_required( $post ) ) {
+		return;
+	}
+
+	$has_marker = has_shortcode( $post->post_content, 'tokenlink_zendesk_login' );
+
+	/**
+	 * Filter: allow page builders that store content outside post_content
+	 * (Elementor, Bricks, etc.) to opt a page in to SSO redirection.
+	 *
+	 * @param bool    $has_marker Whether this page should trigger SSO.
+	 * @param WP_Post $post       Current post object.
+	 */
+	$has_marker = (bool) apply_filters( 'tokenlink_zendesk_sso_page_match', $has_marker, $post );
+
+	if ( ! $has_marker ) {
+		return;
+	}
+
+	$current_url = get_permalink( $post );
+
+	if ( ! is_user_logged_in() ) {
+		tokenlink_zendesk_sso_redirect_to_login( $current_url );
+		// Function does not return.
+	}
+
+	tokenlink_zendesk_sso_redirect_to_zendesk();
+	// If we returned, configuration is incomplete — let the shortcode render the message.
+}
+add_action( 'template_redirect', 'tokenlink_zendesk_sso_template_redirect', 1 );
+
+/**
+ * Send an anonymous visitor to the configured (or default) login URL,
+ * appending redirect_to so they come back to the SSO page after login.
+ *
+ * @param string $current_url Permalink of the page to return to after login.
+ * @return void
+ */
+function tokenlink_zendesk_sso_redirect_to_login( $current_url ) {
+	$login_redirect = trim( (string) get_option( 'tokenlink_zendesk_login_redirect', '' ) );
+	$is_external    = false;
+
+	if ( '' === $login_redirect || '/' === $login_redirect ) {
+		$redirect_url = wp_login_url( $current_url );
+	} else {
+		if ( preg_match( '#^https?://#i', $login_redirect ) ) {
+			$redirect_url = $login_redirect;
+			$is_external  = true;
+		} else {
+			$redirect_url = home_url( $login_redirect );
+		}
+		// add_query_arg handles encoding internally — passing a raw URL avoids double-encoding.
+		$redirect_url = add_query_arg( 'redirect_to', $current_url, $redirect_url );
+	}
+
+	// Loop guard: if the resolved redirect resolves to the same page that triggered this redirect,
+	// fall back to the default WP login URL to avoid an infinite redirect.
+	$current_host = wp_parse_url( $current_url, PHP_URL_HOST );
+	$current_path = wp_parse_url( $current_url, PHP_URL_PATH );
+	$target_host  = wp_parse_url( $redirect_url, PHP_URL_HOST );
+	$target_path  = wp_parse_url( $redirect_url, PHP_URL_PATH );
+	if ( $current_host && $target_host && $current_host === $target_host && $current_path === $target_path ) {
+		$redirect_url = wp_login_url( $current_url );
+		$is_external  = false;
+	}
+
+	nocache_headers();
+
+	if ( $is_external ) {
+		// Operator explicitly opted in to an external login URL; bypass safe-redirect's host allowlist.
+		$ext_host = wp_parse_url( $redirect_url, PHP_URL_HOST );
+		if ( $ext_host ) {
+			add_filter(
+				'allowed_redirect_hosts',
+				function ( $hosts ) use ( $ext_host ) {
+					$hosts[] = $ext_host;
+					return $hosts;
+				}
+			);
+		}
+	}
+
+	wp_safe_redirect( $redirect_url, 303 );
+	exit;
+}
+
+/**
+ * Mint a short-lived JWT and redirect the current user to Zendesk's SSO endpoint.
+ *
+ * Returns silently (without redirecting) when subdomain or shared secret is unset
+ * or the stored subdomain fails revalidation, so the shortcode can render the
+ * "not configured" notice instead.
+ *
+ * @return void
+ */
+function tokenlink_zendesk_sso_redirect_to_zendesk() {
+	$subdomain = trim( (string) get_option( 'tokenlink_zendesk_subdomain', '' ) );
+	$secret    = trim( (string) get_option( 'tokenlink_zendesk_shared_key', '' ) );
+
+	if ( '' === $subdomain || '' === $secret ) {
+		return;
+	}
+
+	// Defense in depth: re-validate the stored subdomain at use time. If it was tampered
+	// with via direct DB access (bypassing the save-time sanitize callback), refuse to ship
+	// a JWT to an unverified host.
+	if ( ! preg_match( '/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $subdomain ) ) {
+		return;
+	}
+
+	// Lazy-load the JWT library only when we are about to use it.
+	if ( ! class_exists( '\\Firebase\\JWT\\JWT' ) ) {
+		$dir = __DIR__ . '/includes/jwt/';
+		require_once $dir . 'Key.php';
+		require_once $dir . 'JWT.php';
+	}
+
+	$user = wp_get_current_user();
+	$now  = time();
+
+	// Normalize name and email: strip HTML, decode entities, lowercase email so
+	// Zendesk does not create distinct user records per case variation.
+	$name = trim( wp_strip_all_tags( html_entity_decode( (string) $user->display_name, ENT_QUOTES, 'UTF-8' ) ) );
+	if ( '' === $name ) {
+		$name = (string) $user->user_login;
+	}
+	$email = strtolower( sanitize_email( (string) $user->user_email ) );
+
+	$payload = array(
+		'iat'   => $now,
+		// 60s skew slack — recipient clocks may be slightly ahead of ours.
+		'nbf'   => $now - 60,
+		// Short-lived token: 2 min is long enough for the browser to follow the redirect, short enough to limit replay.
+		'exp'   => $now + 120,
+		// URL-safe random JWT ID (128 bits of entropy, no `+/=` characters).
+		'jti'   => rtrim( strtr( base64_encode( random_bytes( 16 ) ), '+/', '-_' ), '=' ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+		'name'  => $name,
+		'email' => $email,
+	);
+
+	$jwt          = \Firebase\JWT\JWT::encode( $payload, $secret, 'HS256' );
+	$redirect_url = 'https://' . $subdomain . '.zendesk.com/access/jwt?jwt=' . rawurlencode( $jwt );
+
+	nocache_headers();
+	// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External redirect to Zendesk SSO endpoint is intentional.
+	wp_redirect( $redirect_url, 303 );
+	exit;
+}
+
+/*
+ * Shortcode acts as a page marker. In normal operation template_redirect
+ * has already exited the request, so this callback only runs when the
+ * plugin is not yet configured — in which case it shows the admin notice
+ * inline on the page.
  */
 add_shortcode(
 	'tokenlink_zendesk_login',
 	function () {
-		if ( ! is_user_logged_in() ) {
-			// Pull configured redirect URL or default to WordPress login.
-			$login_redirect = trim( get_option( 'tokenlink_zendesk_login_redirect', '' ) );
-
-			// Default fallback to the native WordPress login page.
-			if ( empty( $login_redirect ) || '/' === $login_redirect ) {
-				$redirect_url = wp_login_url();
-			} elseif ( ! preg_match( '#^https?://#', $login_redirect ) ) {
-				// Handle relative or full URLs cleanly.
-				$redirect_url = home_url( $login_redirect );
-			} else {
-				$redirect_url = $login_redirect;
-			}
-
-			// Append redirect_to for returning after login.
-			$redirect_url = add_query_arg( 'redirect_to', rawurlencode( get_permalink() ), $redirect_url );
-
-			wp_safe_redirect( $redirect_url );
-			exit;
+		if ( ! tokenlink_zendesk_sso_is_configured() ) {
+			return '<p>' . esc_html__( 'TokenLink Zendesk SSO is not configured properly. Please contact the administrator.', 'tokenlink-sso-login-for-zendesk' ) . '</p>';
 		}
 
-		// Lazy-load JWT library ONLY at runtime.
-		if ( ! class_exists( '\\Firebase\\JWT\\JWT' ) ) {
-			$dir = __DIR__ . '/includes/jwt/';
-			require_once $dir . 'Key.php';
-			require_once $dir . 'JWT.php';
-		}
-
-		$user      = wp_get_current_user();
-		$subdomain = sanitize_text_field( get_option( 'tokenlink_zendesk_subdomain' ) );
-		$secret    = sanitize_text_field( get_option( 'tokenlink_zendesk_shared_key' ) );
-
-		if ( empty( $subdomain ) || empty( $secret ) ) {
-			return '<p>TokenLink Zendesk SSO is not configured properly. Please contact the administrator.</p>';
-		}
-
-		$payload = array(
-			'iat'   => time(),
-			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- Used for JWT ID generation, not obfuscation.
-			'jti'   => base64_encode( random_bytes( 16 ) ),
-			'name'  => $user->display_name,
-			'email' => $user->user_email,
-		);
-
-		// Use fully qualified class path to avoid namespace parsing at load.
-		$jwt          = \Firebase\JWT\JWT::encode( $payload, $secret, 'HS256' );
-		$redirect_url = "https://{$subdomain}.zendesk.com/access/jwt?jwt={$jwt}";
-
-		// phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- External redirect to Zendesk SSO endpoint is intentional.
-		wp_redirect( $redirect_url );
-		exit;
+		// Should be unreachable in normal flow: template_redirect would have already redirected.
+		return '';
 	}
 );

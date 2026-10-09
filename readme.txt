@@ -3,9 +3,9 @@ Contributors: mailborder
 Donate link: https://donate.stripe.com/14AdRa6XJ1Xn8yT8KObfO00
 Tags: zendesk, sso, jwt, single sign on, login
 Requires at least: 5.5
-Tested up to: 6.9
+Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -66,7 +66,7 @@ No. This is a standalone plugin and does not depend on any other plugin.
 Yes. It implements the standard JWT-based SSO endpoint (`/access/jwt`).
 
 = Is Composer required? =
-No. The JWT library is bundled directly in the plugin for convenience and meets Wordpress PHPCS standards.
+No. The JWT library is bundled directly in the plugin for convenience and meets WordPress PHPCS standards.
 
 = Does this plugin store any user data? =
 No. It simply authenticates the current logged-in WordPress user and securely passes their name and email to Zendesk for SSO. No personal data is logged or retained by the plugin.
@@ -93,12 +93,32 @@ Verify your Zendesk subdomain and shared secret are correct, and that your Zende
 
 == Changelog ==
 
+= 1.0.10 - 2026-05-28 =
+* Verified compatible with WordPress 7.0 (released 2026-05-20). No DataViews or classic meta box dependencies.
+* Added modern plugin header fields: Requires at least, Requires PHP, Tested up to, Text Domain.
+* Moved SSO redirect from the shortcode callback to the `template_redirect` action (priority 1) so headers are always available; runs ahead of most caching plugins.
+* Added gates so preview, customizer, REST, AJAX, cron, XML-RPC and WP-CLI requests are not redirected.
+* Honour `post_password_required()` so password-protected pages keep their gate.
+* New `tokenlink_zendesk_sso_page_match` filter so page builders (Elementor, Bricks, etc.) can flag SSO pages whose shortcode lives outside post_content.
+* Loop guard: if the configured login redirect resolves back to the SSO page itself, fall back to the default WP login URL.
+* External login redirect URLs (off-site IdPs) are now actually followed instead of silently falling back to wp-login.php.
+* Security: JWT now includes `exp` (now+120s) and `nbf` (now-60s, 60s skew tolerance) claims; URL-safe `jti`; 128-bit entropy.
+* Security: subdomain strictly validated at both save time and use time (lowercase alphanumeric + hyphens, RFC-style DNS label), rejecting pasted URLs or malicious strings.
+* Security: redirects now send `nocache_headers()` and HTTP 303 so intermediate caches cannot cross-serve a JWT to another user.
+* Security: Shared Secret field changed to password input with autocomplete disabled.
+* Hardened login-redirect option sanitizer: requires empty, "/"-rooted path, or full http(s):// URL; rejects protocol-relative and other schemes.
+* Shared secret sanitizer relaxed to trim-only so legitimate Zendesk-generated secrets are not mutated.
+* `display_name` is HTML-decoded and tag-stripped before going into the JWT; `user_email` is lowercased to avoid duplicate Zendesk users.
+* Localized previously hardcoded English strings in the settings UI.
+* Guarded `get_plugin_data()` call with explicit `wp-admin/includes/plugin.php` include.
+* New activation notice points administrators at the settings page on first activation.
+
 = 1.0.9 - 2026-01-26 =
 * Added tabbed settings interface with General and About tabs.
 * Added About page with plugin information, features, and support links.
 
 = 1.0.8 - 2025-12-03 =
-* Code compliance review for Wordpress 6.9.
+* Code compliance review for WordPress 6.9.
 * Updated documentation. 
 
 = 1.0.7 - 2025-11-02 =
@@ -113,6 +133,9 @@ Verify your Zendesk subdomain and shared secret are correct, and that your Zende
 * Added `[tokenlink_zendesk_login]` shortcode.
 
 == Upgrade Notice ==
+
+= 1.0.10 =
+* WordPress 7.0 compatibility verified. Security hardening: short-lived JWT tokens and masked Shared Secret input. No action required by users.
 
 = 1.0.9 =
 * Added tabbed settings interface with About page. No action required by users.
